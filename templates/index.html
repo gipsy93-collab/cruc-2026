@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Asistencia - CRECS 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; min-height: 100vh; }
+.header { background: #1a237e; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 20px; font-weight: 600; }
+.header .stats { font-size: 14px; opacity: 0.9; }
+.main { max-width: 1200px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .main { grid-template-columns: 1fr; } }
+.search-section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.search-section h2 { font-size: 16px; color: #333; margin-bottom: 16px; }
+.search-box { width: 100%; padding: 14px 16px; font-size: 18px; border: 2px solid #ddd; border-radius: 8px; outline: none; transition: border-color 0.2s; }
+.search-box:focus { border-color: #1a237e; }
+.search-hint { font-size: 12px; color: #888; margin-top: 6px; }
+.results-list { margin-top: 12px; max-height: 400px; overflow-y: auto; }
+.result-item { padding: 12px 16px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; display: flex; justify-content: space-between; align-items: center; }
+.result-item:hover { background: #f5f5ff; border-color: #1a237e; }
+.result-item .name { font-weight: 600; color: #1a237e; }
+.result-item .institucion { font-size: 13px; color: #666; }
+.result-item .badge { font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 500; white-space: nowrap; margin-left: 8px; }
+.badge-congreso { background: #e3f2fd; color: #1565c0; }
+.badge-seminarios { background: #e8f5e9; color: #2e7d32; }
+.detail-section { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.detail-section h2 { font-size: 16px; color: #333; margin-bottom: 16px; }
+.no-selection { color: #999; text-align: center; padding: 60px 20px; }
+.no-selection p { font-size: 14px; }
+.detail-card .name-display { font-size: 24px; font-weight: 700; color: #1a237e; }
+.detail-card .meta { color: #666; font-size: 14px; margin-top: 4px; }
+.detail-card .section { margin-top: 20px; }
+.detail-card .section h3 { font-size: 14px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 12px; }
+.detail-card .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.detail-card .info-item { padding: 8px 12px; background: #f8f9fa; border-radius: 6px; font-size: 14px; }
+.detail-card .info-item .label { color: #888; font-size: 12px; }
+.detail-card .info-item .value { font-weight: 500; color: #333; }
+.detail-card .tipo-inscripcion { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 15px; margin-top: 8px; }
+.tipo-solo-congreso { background: #e3f2fd; color: #1565c0; }
+.tipo-con-seminarios { background: #e8f5e9; color: #2e7d32; }
+.attendance-btn { display: block; width: 100%; padding: 16px; font-size: 18px; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; margin-top: 24px; transition: all 0.2s; }
+.attendance-btn.btn-mark { background: #1a237e; color: white; }
+.attendance-btn.btn-mark:hover { background: #283593; }
+.attendance-btn.btn-done { background: #e8f5e9; color: #2e7d32; cursor: default; }
+.attendance-btn.btn-mark-sem { background: #1565c0; color: white; font-size: 14px; padding: 10px 16px; margin-top: 0; }
+.attendance-btn.btn-mark-sem:hover { background: #1976d2; }
+.attendance-btn.btn-sem-done { background: #e8f5e9; color: #2e7d32; font-size: 14px; padding: 10px 16px; margin-top: 0; cursor: default; }
+.attendance-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.receptionist-input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; margin-top: 12px; font-size: 14px; outline: none; }
+.receptionist-input:focus { border-color: #1a237e; }
+.reload-btn { background: none; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.reload-btn:hover { background: rgba(255,255,255,0.1); }
+.no-results { padding: 30px; text-align: center; color: #999; }
+.seminar-grid { display: flex; flex-direction: column; gap: 8px; }
+.seminar-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8f9fa; border-radius: 8px; }
+.seminar-row .sem-name { font-weight: 500; font-size: 14px; color: #333; }
+.seminar-row .sem-registered { font-size: 12px; color: #888; }
+.seminar-row .sem-status { display: flex; align-items: center; gap: 10px; }
+.gen-status { padding: 10px 14px; background: #f8f9fa; border-radius: 8px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+.gen-status .check { color: #2e7d32; font-weight: 600; }
+.gen-status .pending { color: #e65100; }
+.attd-timestamp { font-size: 12px; color: #888; }
+.register-btn { background: #2e7d32; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; width: 100%; margin-top: 16px; }
+.register-btn:hover { background: #388e3c; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; }
+.modal { background: white; border-radius: 12px; padding: 28px; width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.modal h2 { font-size: 18px; color: #1a237e; margin-bottom: 20px; }
+.modal .field { margin-bottom: 14px; }
+.modal .field label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; font-weight: 500; }
+.modal .field input, .modal .field select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; }
+.modal .field input:focus { border-color: #1a237e; }
+.modal .sem-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.modal .sem-checkboxes label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 6px 10px; background: #f8f9fa; border-radius: 6px; }
+.modal .sem-checkboxes input[type="checkbox"] { width: auto; }
+.modal .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.modal .modal-actions button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.modal .modal-actions .btn-save { background: #1a237e; color: white; }
+.modal .modal-actions .btn-save:hover { background: #283593; }
+.modal .modal-actions .btn-cancel { background: #eee; color: #666; }
+.modal .modal-actions .btn-cancel:hover { background: #ddd; }
+.modal .msg { padding: 10px; border-radius: 6px; margin-bottom: 14px; font-size: 14px; display: none; }
+.modal .msg.ok { background: #e8f5e9; color: #2e7d32; display: block; }
+.modal .msg.err { background: #fce4ec; color: #c62828; display: block; }
+</style>
+</head>
+<body>
+<div class="header">
+    <div>
+        <h1>CRECS 2026 - Control de Asistencia</h1>
+        <div class="stats" id="headerStats">Cargando...</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="/report" style="background:none;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;text-decoration:none;">Reporte</a>
+        <button class="reload-btn" onclick="reloadData()" title="Recargar datos desde Google Sheets">Recargar</button>
+    </div>
+</div>
+<div class="main">
+    <div class="search-section">
+        <h2>Buscar asistente</h2>
+        <input type="text" class="search-box" id="searchInput" placeholder="Escribe nombre o apellidos..." autofocus>
+        <div class="search-hint">Escribe al menos 2 caracteres</div>
+        <div class="results-list" id="resultsList"></div>
+        <button class="register-btn" onclick="openRegisterModal()">+ Nueva inscripci&oacute;n de &uacute;ltima hora</button>
+    </div>
+    <div class="detail-section" id="detailSection">
+        <div class="no-selection" id="noSelection">
+            <p>Selecciona un asistente de la lista para ver su informaci&oacute;n y registrar su asistencia.</p>
+        </div>
+        <div class="detail-card" id="detailCard" style="display:none;"></div>
+    </div>
+</div>
+<script>
+let selectedKeyId = null;
+let searchTimeout = null;
+
+const headerStats = document.getElementById('headerStats');
+const searchInput = document.getElementById('searchInput');
+const resultsList = document.getElementById('resultsList');
+const noSelection = document.getElementById('noSelection');
+const detailCard = document.getElementById('detailCard');
+
+function updateStats() {
+    fetch('/api/stats').then(r => r.json()).then(d => {
+        let s = 'Total: ' + d.total + ' | Asistieron: ' + d.asistieron + ' | Pendientes: ' + d.pendientes;
+        if (d.seminarios) {
+            for (const [sem, data] of Object.entries(d.seminarios)) {
+                s += ' | ' + sem + ': ' + data.asistieron + '/' + data.inscritos;
+            }
+        }
+        headerStats.textContent = s;
+    });
+}
+
+function doSearch() {
+    const q = searchInput.value.trim();
+    if (q.length < 2) {
+        resultsList.innerHTML = '';
+        return;
+    }
+    fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            if (data.length === 0) {
+                resultsList.innerHTML = '<div class="no-results">Sin resultados</div>';
+                return;
+            }
+            resultsList.innerHTML = data.map(a => {
+                const fullName = a.nombre + ' ' + a.apellidos;
+                let badge;
+                if (a.total_seminarios === 0) {
+                    badge = '<span class="badge badge-congreso">Solo Congreso</span>';
+                } else {
+                    badge = '<span class="badge badge-seminarios">' + a.total_seminarios + ' Seminario(s)</span>';
+                }
+                return '<div class="result-item" onclick="showDetail(\'' + a.key_id.replace(/'/g, "\\'") + '\')">' +
+                    '<div><div class="name">' + fullName + '</div><div class="institucion">' + (a.institucion || '') + '</div></div>' +
+                    badge + '</div>';
+            }).join('');
+        });
+}
+
+function formatTime(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleString('es-ES', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+}
+
+function escKey(k) {
+    return k.replace(/'/g, "\\'");
+}
+
+function showDetail(keyId) {
+    selectedKeyId = keyId;
+    noSelection.style.display = 'none';
+    detailCard.style.display = 'block';
+    detailCard.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Cargando...</div>';
+
+    Promise.all([
+        fetch('/api/search?q=' + encodeURIComponent(keyId)).then(r => r.json()),
+        fetch('/api/status/' + encodeURIComponent(keyId)).then(r => r.json())
+    ]).then(([searchData, status]) => {
+        const a = searchData.find(x => x.key_id === keyId);
+        if (!a) return;
+        const fullName = a.nombre + ' ' + a.apellidos;
+        const tipoClass = a.total_seminarios === 0 ? 'tipo-solo-congreso' : 'tipo-con-seminarios';
+
+        let html = '';
+        html += '<div class="name-display">' + fullName + '</div>';
+        html += a.email ? '<div class="meta">' + a.email + '</div>' : '';
+        html += '<div class="tipo-inscripcion ' + tipoClass + '">' + a.tipo_inscripcion + '</div>';
+
+        html += '<div class="section"><h3>Datos</h3><div class="info-grid">' +
+            '<div class="info-item"><div class="label">Instituci\u00f3n</div><div class="value">' + (a.institucion || '\u2014') + '</div></div>' +
+            '<div class="info-item"><div class="label">Pa\u00eds</div><div class="value">' + (a.pais || '\u2014') + '</div></div>' +
+            '</div></div>';
+
+        html += '<div class="section"><h3>Asistencia General</h3>';
+        if (status.asistio) {
+            html += '<div class="gen-status"><span class="check">Asisti\u00f3 al congreso</span><span class="attd-timestamp">' + formatTime(status.timestamp) + '</span></div>';
+            html += '<input type="text" class="receptionist-input" id="recpInput" placeholder="Tu nombre (recepcionista)" style="display:none;">';
+            html += '<button class="attendance-btn btn-done" disabled>Asistencia general registrada</button>';
+        } else {
+            html += '<div class="gen-status"><span class="pending">Pendiente</span></div>';
+            html += '<input type="text" class="receptionist-input" id="recpInput" placeholder="Tu nombre (recepcionista)">';
+            html += '<button class="attendance-btn btn-mark" onclick="markGeneral(\'' + escKey(keyId) + '\')">Registrar Asistencia General</button>';
+        }
+        html += '</div>';
+
+        if (a.seminarios && a.seminarios.length > 0) {
+            html += '<div class="section"><h3>Registro por Seminarios</h3><div class="seminar-grid">';
+            a.seminarios.forEach(function(sem) {
+                const asistioSem = status.seminarios && status.seminarios[sem];
+                html += '<div class="seminar-row" id="sem-row-' + sem.replace(/\s/g, '') + '">';
+                html += '<div><div class="sem-name">' + sem + '</div><div class="sem-registered">Inscrito</div></div>';
+                html += '<div class="sem-status">';
+                if (asistioSem) {
+                    html += '<span class="check">Asisti\u00f3</span>';
+                    html += '<span class="attd-timestamp">' + formatTime(asistioSem) + '</span>';
+                    html += '<button class="attendance-btn btn-sem-done" disabled>Registrado</button>';
+                } else {
+                    html += '<span class="pending">Pendiente</span>';
+                    html += '<button class="attendance-btn btn-mark-sem" onclick="markSeminar(\'' + escKey(keyId) + '\', \'' + escKey(sem) + '\')">Marcar entrada</button>';
+                }
+                html += '</div></div>';
+            });
+            html += '</div></div>';
+        }
+
+        detailCard.innerHTML = html;
+    });
+}
+
+function markGeneral(keyId) {
+    const r = document.getElementById('recpInput');
+    const recepcionista = r ? r.value.trim() : '';
+    fetch('/api/mark', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key_id: keyId, recepcionista: recepcionista})
+    })
+    .then(r => r.json())
+    .then(d => {
+        showDetail(keyId);
+        updateStats();
+    });
+}
+
+function markSeminar(keyId, seminario) {
+    const r = document.getElementById('recpInput');
+    let recepcionista = r ? r.value.trim() : '';
+    if (!recepcionista) {
+        recepcionista = prompt('Nombre de la recepcionista:');
+        if (!recepcionista) return;
+    }
+    fetch('/api/mark-seminar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key_id: keyId, seminario: seminario, recepcionista: recepcionista})
+    })
+    .then(r => r.json())
+    .then(d => {
+        showDetail(keyId);
+        updateStats();
+    });
+}
+
+function reloadData() {
+    fetch('/api/reload', {method: 'POST'})
+        .then(r => r.json())
+        .then(d => {
+            updateStats();
+            searchInput.value = '';
+            resultsList.innerHTML = '';
+            noSelection.style.display = 'block';
+            detailCard.style.display = 'none';
+        });
+}
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(doSearch, 150);
+});
+
+updateStats();
+setInterval(updateStats, 30000);
+
+function openRegisterModal() {
+    document.getElementById('registerModal').style.display = 'flex';
+    document.getElementById('modalMsg').style.display = 'none';
+    document.getElementById('regForm').reset();
+}
+
+function closeRegisterModal() {
+    document.getElementById('registerModal').style.display = 'none';
+}
+
+function submitRegistration() {
+    const f = document.getElementById('regForm');
+    const data = {
+        apellidos: f.apellidos.value.trim(),
+        nombre: f.nombre.value.trim(),
+        email: f.email.value.trim(),
+        institucion: f.institucion.value.trim(),
+        pais: f.pais.value.trim(),
+        seminarios: []
+    };
+    if (!data.apellidos || !data.nombre) {
+        showModalMsg('Apellidos y nombre son obligatorios', 'err');
+        return;
+    }
+    ['sem1','sem2','sem3','sem4'].forEach(function(id, i) {
+        if (document.getElementById(id).checked) data.seminarios.push('Seminario ' + (i + 1));
+    });
+    document.querySelector('.btn-save').disabled = true;
+    document.querySelector('.btn-save').textContent = 'Guardando...';
+    fetch('/api/register-last-minute', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.status === 'ok') {
+            showModalMsg('Inscripci\u00f3n registrada correctamente. ' + (d.gsheet_ok ? 'Guardado en Google Sheets.' : 'Guardado localmente (revisa configuraci\u00f3n Google Sheets).'), 'ok');
+            updateStats();
+            setTimeout(closeRegisterModal, 2000);
+        } else {
+            showModalMsg(d.error || 'Error al registrar', 'err');
+        }
+    })
+    .catch(function() {
+        showModalMsg('Error de conexi\u00f3n', 'err');
+    })
+    .finally(function() {
+        document.querySelector('.btn-save').disabled = false;
+        document.querySelector('.btn-save').textContent = 'Guardar';
+    });
+}
+
+function showModalMsg(text, type) {
+    const el = document.getElementById('modalMsg');
+    el.textContent = text;
+    el.className = 'msg ' + type;
+    el.style.display = 'block';
+}
+</script>
+
+<div class="modal-overlay" id="registerModal" onclick="if(event.target===this)closeRegisterModal()">
+    <div class="modal">
+        <h2>Nueva inscripci&oacute;n de &uacute;ltima hora</h2>
+        <div class="msg" id="modalMsg"></div>
+        <form id="regForm" onsubmit="event.preventDefault();submitRegistration()">
+            <div class="field">
+                <label>Apellidos *</label>
+                <input type="text" name="apellidos" required autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Nombre *</label>
+                <input type="text" name="nombre" required autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Email</label>
+                <input type="email" name="email" autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Instituci&oacute;n</label>
+                <input type="text" name="institucion" autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Pa&iacute;s</label>
+                <input type="text" name="pais" autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Seminarios</label>
+                <div class="sem-checkboxes">
+                    <label><input type="checkbox" id="sem1"> Seminario 1</label>
+                    <label><input type="checkbox" id="sem2"> Seminario 2</label>
+                    <label><input type="checkbox" id="sem3"> Seminario 3</label>
+                    <label><input type="checkbox" id="sem4"> Seminario 4</label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeRegisterModal()">Cancelar</button>
+                <button type="submit" class="btn-save">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

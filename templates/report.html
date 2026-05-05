@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte Final - CRECS 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+.header { background: #1a237e; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 20px; font-weight: 600; }
+.header .actions { display: flex; gap: 10px; }
+.header .actions a, .header .actions button { background: rgba(255,255,255,0.15); color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 13px; border: none; cursor: pointer; }
+.header .actions a:hover, .header .actions button:hover { background: rgba(255,255,255,0.25); }
+.main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.summary-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+.summary-card .num { font-size: 36px; font-weight: 700; color: #1a237e; }
+.summary-card .label { font-size: 13px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.summary-card .sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+.summary-card.highlight { border-left: 4px solid #2e7d32; }
+.summary-card .num.green { color: #2e7d32; }
+.summary-card .num.orange { color: #e65100; }
+h2 { font-size: 18px; color: #333; margin: 24px 0 12px; }
+.seminar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.sem-card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+.sem-card .sem-name { font-weight: 600; color: #1a237e; margin-bottom: 8px; font-size: 14px; }
+.sem-card .sem-num { font-size: 28px; font-weight: 700; color: #333; }
+.sem-card .sem-label { font-size: 12px; color: #888; }
+.sem-card .sem-bar { height: 6px; background: #e0e0e0; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.sem-card .sem-bar-fill { height: 100%; background: #2e7d32; border-radius: 3px; }
+.table-wrap { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead { background: #1a237e; color: white; }
+th { padding: 10px 12px; text-align: left; font-weight: 500; white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+tr:hover td { background: #f5f5ff; }
+.check-si { color: #2e7d32; font-weight: 600; }
+.check-no { color: #ccc; }
+.footer { text-align: center; padding: 24px; color: #999; font-size: 13px; }
+@media print {
+    .header .actions { display: none; }
+    .summary-card { break-inside: avoid; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>CRECS 2026 - Reporte Final de Asistencia</h1>
+    <div class="actions">
+        <a href="/">Volver al control</a>
+        <button onclick="window.print()">Imprimir / PDF</button>
+        <button onclick="downloadCSV()">Descargar CSV</button>
+    </div>
+</div>
+<div class="main" id="mainContent">
+    <div style="text-align:center;padding:60px;color:#999;">Cargando reporte...</div>
+</div>
+<div class="footer" id="footer" style="display:none;">
+    Generado el <span id="genDate"></span> &mdash; CRECS 2026
+</div>
+<script>
+function loadReport() {
+    fetch('/api/report-data')
+        .then(r => r.json())
+        .then(d => {
+            const main = document.getElementById('mainContent');
+            const pct = d.pct_general;
+            main.innerHTML = '';
+
+            const summary = document.createElement('div');
+            summary.className = 'summary';
+            summary.innerHTML =
+                '<div class="summary-card highlight"><div class="num green">' + d.asistieron_general + '</div><div class="label">Asistieron al Congreso</div><div class="sub">' + pct + '% del total</div></div>' +
+                '<div class="summary-card"><div class="num orange">' + d.pendientes_general + '</div><div class="label">No asistieron</div><div class="sub">' + (100 - pct) + '%</div></div>' +
+                '<div class="summary-card"><div class="num">' + d.total + '</div><div class="label">Total inscritos</div></div>' +
+                '<div class="summary-card"><div class="num">' + d.solo_congreso + '</div><div class="label">Solo Congreso</div></div>' +
+                '<div class="summary-card"><div class="num">' + d.con_seminarios + '</div><div class="label">Con Seminarios</div></div>';
+            main.appendChild(summary);
+
+            const semHeading = document.createElement('h2');
+            semHeading.textContent = 'Asistencia por Seminario';
+            main.appendChild(semHeading);
+
+            const semGrid = document.createElement('div');
+            semGrid.className = 'seminar-grid';
+            for (const [sem, data] of Object.entries(d.seminarios)) {
+                const pctSem = data.porcentaje || 0;
+                semGrid.innerHTML +=
+                    '<div class="sem-card">' +
+                        '<div class="sem-name">' + sem + '</div>' +
+                        '<div class="sem-num">' + data.asistieron + ' / ' + data.inscritos + '</div>' +
+                        '<div class="sem-label">' + pctSem + '% asistieron</div>' +
+                        '<div class="sem-bar"><div class="sem-bar-fill" style="width:' + pctSem + '%"></div></div>' +
+                    '</div>';
+            }
+            main.appendChild(semGrid);
+
+            const tableHeading = document.createElement('h2');
+            tableHeading.textContent = 'Listado completo de asistentes (' + d.rows.length + ')';
+            main.appendChild(tableHeading);
+
+            const tableWrap = document.createElement('div');
+            tableWrap.className = 'table-wrap';
+            let tableHtml = '<table><thead><tr>' +
+                '<th>#</th><th>Apellidos</th><th>Nombre</th><th>Email</th><th>Instituci\u00f3n</th>' +
+                '<th>Tipo</th><th>Asisti\u00f3</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Sem. Asistidos</th>' +
+                '</tr></thead><tbody>';
+            d.rows.forEach(function(r, i) {
+                const genClass = r.asistio_general ? 'check-si' : 'check-no';
+                const genText = r.asistio_general ? 'S\u00ed' : 'No';
+                const sem1 = r['Seminario 1'] ? '<span class="check-si">S\u00ed</span>' : '<span class="check-no">No</span>';
+                const sem2 = r['Seminario 2'] ? '<span class="check-si">S\u00ed</span>' : '<span class="check-no">No</span>';
+                const sem3 = r['Seminario 3'] ? '<span class="check-si">S\u00ed</span>' : '<span class="check-no">No</span>';
+                const sem4 = r['Seminario 4'] ? '<span class="check-si">S\u00ed</span>' : '<span class="check-no">No</span>';
+                tableHtml += '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td>' + r.apellidos + '</td>' +
+                    '<td>' + r.nombre + '</td>' +
+                    '<td>' + (r.email || '\u2014') + '</td>' +
+                    '<td>' + (r.institucion || '\u2014') + '</td>' +
+                    '<td>' + r.tipo + '</td>' +
+                    '<td class="' + genClass + '">' + genText + '</td>' +
+                    '<td>' + sem1 + '</td>' +
+                    '<td>' + sem2 + '</td>' +
+                    '<td>' + sem3 + '</td>' +
+                    '<td>' + sem4 + '</td>' +
+                    '<td>' + r.total_asistidos + '/' + r.total_inscritos + '</td>' +
+                    '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+            tableWrap.innerHTML = tableHtml;
+            main.appendChild(tableWrap);
+
+            document.getElementById('footer').style.display = 'block';
+            document.getElementById('genDate').textContent = new Date().toLocaleString('es-ES');
+        });
+}
+
+function downloadCSV() {
+    window.location.href = '/api/report-csv';
+}
+
+loadReport();
+</script>
+</body>
+</html>

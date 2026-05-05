@@ -163,6 +163,46 @@ def save_attendance_sheet(attendance):
     except Exception as e:
         print(f'Error guardando asistencia: {e}')
 
+def save_single_attendance(key_id, record):
+    """Guarda un solo registro de asistencia (upsert) - seguro para serverless."""
+    gc = get_gc()
+    if not gc:
+        return False
+    try:
+        sh = gc.open_by_key(SHEET_ID)
+        try:
+            ws = sh.worksheet('Asistencia')
+        except:
+            ws = sh.add_worksheet('Asistencia', 1000, 10)
+            ws.append_row(['key_id', 'timestamp', 'recepcionista', 'Seminario 1', 'Seminario 2', 'Seminario 3', 'Seminario 4'])
+        sem = record.get('seminarios', {})
+        row_data = [
+            key_id,
+            record.get('timestamp', ''),
+            record.get('recepcionista', ''),
+            sem.get('Seminario 1', ''),
+            sem.get('Seminario 2', ''),
+            sem.get('Seminario 3', ''),
+            sem.get('Seminario 4', '')
+        ]
+        all_vals = ws.get_all_values()
+        row_num = None
+        for i, row in enumerate(all_vals):
+            if i == 0:
+                continue
+            if row and row[0] == key_id:
+                row_num = i + 1
+                break
+        if row_num:
+            ws.update(f'A{row_num}:G{row_num}', [row_data])
+        else:
+            ws.append_row(row_data)
+        return True
+    except Exception as e:
+        print(f'Error guardando asistencia individual: {e}')
+        traceback.print_exc()
+        return False
+
 def write_new_attendee_to_sheets(data):
     gc = get_gc()
     if not gc:
@@ -207,31 +247,39 @@ def search():
 
 @app.route('/api/mark', methods=['POST'])
 def mark_attendance():
-    global attendance_data
+    global attendees, attendance_data
     data = request.json
     key_id = data.get('key_id', '')
     recepcionista = data.get('recepcionista', '')
     if not key_id:
         return jsonify({'error': 'ID requerido'}), 400
+    try:
+        attendees, attendance_data = load_data()
+    except:
+        pass
     if key_id in attendance_data and 'timestamp' in attendance_data[key_id]:
-        return jsonify({'status': 'already'})
+        return jsonify({'status': 'already', 'timestamp': attendance_data[key_id]['timestamp']})
     if key_id not in attendance_data:
         attendance_data[key_id] = {'seminarios': {}}
     attendance_data[key_id]['timestamp'] = datetime.now().isoformat()
     attendance_data[key_id]['recepcionista'] = recepcionista
     if 'seminarios' not in attendance_data[key_id]:
         attendance_data[key_id]['seminarios'] = {}
-    save_attendance_sheet(attendance_data)
-    return jsonify({'status': 'ok', 'message': 'Asistencia registrada'})
+    ok = save_single_attendance(key_id, attendance_data[key_id])
+    return jsonify({'status': 'ok', 'saved': ok, 'timestamp': attendance_data[key_id]['timestamp']})
 
 @app.route('/api/mark-seminar', methods=['POST'])
 def mark_seminar():
-    global attendance_data
+    global attendees, attendance_data
     data = request.json
     key_id = data.get('key_id', '')
     seminario = data.get('seminario', '')
     if not key_id or not seminario:
         return jsonify({'error': 'ID y seminario requeridos'}), 400
+    try:
+        attendees, attendance_data = load_data()
+    except:
+        pass
     if key_id not in attendance_data:
         attendance_data[key_id] = {'seminarios': {}}
     if 'seminarios' not in attendance_data[key_id]:
@@ -239,8 +287,8 @@ def mark_seminar():
     if seminario in attendance_data[key_id]['seminarios']:
         return jsonify({'status': 'already'})
     attendance_data[key_id]['seminarios'][seminario] = datetime.now().isoformat()
-    save_attendance_sheet(attendance_data)
-    return jsonify({'status': 'ok', 'message': f'{seminario} registrado'})
+    ok = save_single_attendance(key_id, attendance_data[key_id])
+    return jsonify({'status': 'ok', 'saved': ok, 'timestamp': attendance_data[key_id]['seminarios'][seminario]})
 
 @app.route('/api/status/<path:key_id>')
 def get_status(key_id):

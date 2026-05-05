@@ -247,12 +247,19 @@ function markGeneral(keyId) {
     })
     .then(r => r.json())
     .then(d => {
-        // En Vercel, forzamos recarga para asegurar que este contenedor lea el Excel
-        return fetch('/api/reload', {method: 'POST'});
+        if (d.status === 'ok' || d.status === 'already') {
+            const now = new Date().toLocaleString('es-ES', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+            const gs = document.querySelector('.gen-status');
+            if (gs) gs.innerHTML = '<span class="check">Asisti\u00f3 al congreso \u2713</span><span class="attd-timestamp">' + now + '</span>';
+            if (btn) { btn.className = 'attendance-btn btn-done'; btn.textContent = 'Asistencia registrada \u2713'; }
+            const ri = document.getElementById('recpInput');
+            if (ri) ri.style.display = 'none';
+            updateStats();
+        }
     })
-    .then(() => {
-        showDetail(keyId);
-        updateStats();
+    .catch(err => {
+        if (btn) { btn.textContent = 'Error - Reintentar'; btn.disabled = false; }
+        console.error('Error:', err);
     });
 }
 
@@ -263,18 +270,13 @@ function markSeminar(keyId, seminario) {
         recepcionista = prompt('Nombre de la recepcionista:');
         if (!recepcionista) return;
     }
-    
-    // Buscar el botón clickeado para mostrar estado de carga
     const semId = seminario.replace(/\s/g, '');
     const row = document.getElementById('sem-row-' + semId);
+    let btn = null;
     if (row) {
-        const btn = row.querySelector('.btn-mark-sem');
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = 'Guardando...';
-        }
+        btn = row.querySelector('.btn-mark-sem');
+        if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
     }
-
     fetch('/api/mark-seminar', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -282,11 +284,18 @@ function markSeminar(keyId, seminario) {
     })
     .then(r => r.json())
     .then(d => {
-        return fetch('/api/reload', {method: 'POST'});
+        if (d.status === 'ok' || d.status === 'already') {
+            const now = new Date().toLocaleString('es-ES', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+            if (row) {
+                const statusDiv = row.querySelector('.sem-status');
+                if (statusDiv) statusDiv.innerHTML = '<span class="check">Asisti\u00f3 \u2713</span><span class="attd-timestamp">' + now + '</span><button class="attendance-btn btn-sem-done" disabled>Registrado</button>';
+            }
+            updateStats();
+        }
     })
-    .then(() => {
-        showDetail(keyId);
-        updateStats();
+    .catch(err => {
+        if (btn) { btn.textContent = 'Error - Reintentar'; btn.disabled = false; }
+        console.error('Error:', err);
     });
 }
 

@@ -247,16 +247,12 @@ def search():
 
 @app.route('/api/mark', methods=['POST'])
 def mark_attendance():
-    global attendees, attendance_data
+    global attendance_data
     data = request.json
     key_id = data.get('key_id', '')
     recepcionista = data.get('recepcionista', '')
     if not key_id:
         return jsonify({'error': 'ID requerido'}), 400
-    try:
-        attendees, attendance_data = load_data()
-    except:
-        pass
     if key_id in attendance_data and 'timestamp' in attendance_data[key_id]:
         return jsonify({'status': 'already', 'timestamp': attendance_data[key_id]['timestamp']})
     if key_id not in attendance_data:
@@ -270,16 +266,12 @@ def mark_attendance():
 
 @app.route('/api/mark-seminar', methods=['POST'])
 def mark_seminar():
-    global attendees, attendance_data
+    global attendance_data
     data = request.json
     key_id = data.get('key_id', '')
     seminario = data.get('seminario', '')
     if not key_id or not seminario:
         return jsonify({'error': 'ID y seminario requeridos'}), 400
-    try:
-        attendees, attendance_data = load_data()
-    except:
-        pass
     if key_id not in attendance_data:
         attendance_data[key_id] = {'seminarios': {}}
     if 'seminarios' not in attendance_data[key_id]:

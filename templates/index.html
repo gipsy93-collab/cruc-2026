@@ -233,6 +233,11 @@ function showDetail(keyId) {
 }
 
 function markGeneral(keyId) {
+    const btn = document.querySelector('.btn-mark');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Guardando en Google Sheets...';
+    }
     const r = document.getElementById('recpInput');
     const recepcionista = r ? r.value.trim() : '';
     fetch('/api/mark', {
@@ -242,6 +247,10 @@ function markGeneral(keyId) {
     })
     .then(r => r.json())
     .then(d => {
+        // En Vercel, forzamos recarga para asegurar que este contenedor lea el Excel
+        return fetch('/api/reload', {method: 'POST'});
+    })
+    .then(() => {
         showDetail(keyId);
         updateStats();
     });
@@ -254,6 +263,18 @@ function markSeminar(keyId, seminario) {
         recepcionista = prompt('Nombre de la recepcionista:');
         if (!recepcionista) return;
     }
+    
+    // Buscar el botón clickeado para mostrar estado de carga
+    const semId = seminario.replace(/\s/g, '');
+    const row = document.getElementById('sem-row-' + semId);
+    if (row) {
+        const btn = row.querySelector('.btn-mark-sem');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+        }
+    }
+
     fetch('/api/mark-seminar', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -261,6 +282,9 @@ function markSeminar(keyId, seminario) {
     })
     .then(r => r.json())
     .then(d => {
+        return fetch('/api/reload', {method: 'POST'});
+    })
+    .then(() => {
         showDetail(keyId);
         updateStats();
     });

@@ -356,6 +356,7 @@ def diagnostic():
     gc = get_gc()
     return jsonify({'gc_ok': gc is not None, 'total_asistentes': len(attendees), 'total_asistencias': len(attendance_data)})
 
+# Vercel: expone 'app' como handler WSGI (no usar app.run() en producción)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f'Servidor iniciado en http://localhost:{port}')

@@ -285,6 +285,33 @@ def mark_seminar():
 @app.route('/api/status/<path:key_id>')
 def get_status(key_id):
     rec = attendance_data.get(key_id, {})
+    # Si no está en memoria, buscar directamente en Google Sheets
+    if 'timestamp' not in rec:
+        gc = get_gc()
+        if gc:
+            try:
+                sh = gc.open_by_key(SHEET_ID)
+                ws = sh.worksheet('Asistencia')
+                all_vals = ws.get_all_values()
+                for row in all_vals[1:]:
+                    if row and row[0] == key_id:
+                        rec = {'seminarios': {}}
+                        if len(row) > 1 and row[1]:
+                            rec['timestamp'] = row[1]
+                        if len(row) > 2:
+                            rec['recepcionista'] = row[2]
+                        if len(row) > 3 and row[3]:
+                            rec['seminarios']['Seminario 1'] = row[3]
+                        if len(row) > 4 and row[4]:
+                            rec['seminarios']['Seminario 2'] = row[4]
+                        if len(row) > 5 and row[5]:
+                            rec['seminarios']['Seminario 3'] = row[5]
+                        if len(row) > 6 and row[6]:
+                            rec['seminarios']['Seminario 4'] = row[6]
+                        attendance_data[key_id] = rec
+                        break
+            except:
+                pass
     return jsonify({
         'asistio': 'timestamp' in rec,
         'timestamp': rec.get('timestamp', ''),

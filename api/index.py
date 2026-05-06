@@ -1,5 +1,6 @@
 import os
 import json
+import urllib.parse
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, Response
 import csv
@@ -265,7 +266,8 @@ def search():
 
 @app.route('/api/status/<path:key_id>')
 def api_status(key_id):
-    return jsonify(read_status_from_sheets(key_id))
+    decoded_key = urllib.parse.unquote(key_id)
+    return jsonify(read_status_from_sheets(decoded_key))
 
 @app.route('/api/mark', methods=['POST'])
 def api_mark():

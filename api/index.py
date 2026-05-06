@@ -120,15 +120,27 @@ def get_asistencia_ws(sh):
         ws.append_row(ASIST_HEADERS)
         return ws
 
+def normalize_for_compare(text):
+    """Normaliza texto para comparación, removiendo acentos"""
+    import unicodedata
+    text = text.lower().strip()
+    # Remover acentos
+    text = ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+    return text
+
 def find_in_asistencia(ws, key_id):
     all_vals = ws.get_all_values()
+    key_id_normalized = normalize_for_compare(key_id)
     for i, row in enumerate(all_vals):
         if i == 0:
             continue
         if len(row) >= 3:
             row_email = row[2].strip()
-            row_key = f"{row[0].strip().lower()}_{row[1].strip().lower()}"
-            if (row_email and row_email == key_id) or row_key == key_id:
+            row_key = f"{row[0].strip()}_{row[1].strip()}"
+            row_key_normalized = normalize_for_compare(row_key)
+            
+            # Comparar por email exacto o por key normalizado
+            if (row_email and row_email == key_id) or row_key_normalized == key_id_normalized:
                 return row, i + 1
     return None, None
 
@@ -276,7 +288,9 @@ def api_mark():
     recepcionista = data.get('recepcionista', '')
     if not key_id:
         return jsonify({'error': 'ID requerido'}), 400
-    attendee = next((a for a in attendees if a['key_id'] == key_id), None)
+    # Normalizar para comparación
+    key_id_normalized = key_id.strip()
+    attendee = next((a for a in attendees if a['key_id'] == key_id_normalized), None)
     if not attendee:
         return jsonify({'error': 'Asistente no encontrado'}), 404
     return jsonify(write_general_attendance(attendee, recepcionista))
